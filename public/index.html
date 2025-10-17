@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CursorLearn2API 管理面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 20px; margin-bottom: 15px; color: #333; }
+        .status { display: flex; gap: 20px; flex-wrap: wrap; }
+        .status-item { flex: 1; min-width: 200px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        .status-item label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+        .status-item .value { font-size: 18px; font-weight: bold; color: #333; }
+        .status-item.online .value { color: #28a745; }
+        .models { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+        .model-card { padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid transparent; cursor: pointer; transition: all 0.3s; }
+        .model-card:hover { border-color: #667eea; transform: translateY(-2px); }
+        .model-card.selected { border-color: #667eea; background: #e8eaf6; }
+        .model-card h3 { font-size: 16px; margin-bottom: 8px; color: #333; }
+        .model-card p { font-size: 12px; color: #666; }
+        .test-section { margin-top: 20px; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 100px; }
+        button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.3s; }
+        button:hover { background: #5568d3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .response { margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .config-grid { display: grid; gap: 15px; }
+        .config-item { display: flex; flex-direction: column; gap: 5px; }
+        .config-item label { font-size: 14px; color: #666; }
+        .config-item input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .actions { display: flex; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 CursorLearn2API 管理面板</h1>
+            <p>OpenAI 兼容的 Cursor API 服务</p>
+        </div>
+
+        <div class="card">
+            <h2>📊 服务状态</h2>
+            <div class="status">
+                <div class="status-item online">
+                    <label>服务状态</label>
+                    <div class="value" id="serviceStatus">检查中...</div>
+                </div>
+                <div class="status-item">
+                    <label>浏览器状态</label>
+                    <div class="value" id="browserStatus">-</div>
+                </div>
+                <div class="status-item">
+                    <label>最后更新</label>
+                    <div class="value" id="lastUpdate">-</div>
+                </div>
+                <div class="status-item">
+                    <label>E 值状态</label>
+                    <div class="value" id="eStatus">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🤖 可用模型</h2>
+            <div class="models" id="modelsList"></div>
+        </div>
+
+        <div class="card">
+            <h2>🧪 API 测试</h2>
+            <div class="test-section">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">测试消息</label>
+                <textarea id="testMessage" placeholder="输入测试消息...">你好，请介绍一下自己</textarea>
+                <div class="actions">
+                    <button onclick="testAPI(false)">发送请求</button>
+                    <button onclick="testAPI(true)">流式请求</button>
+                    <button onclick="clearResponse()">清空响应</button>
+                </div>
+                <div id="response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>⚙️ 配置管理</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>服务端口</label>
+                    <input type="number" id="configPort" value="30011" readonly>
+                </div>
+                <div class="config-item">
+                    <label>API 端点</label>
+                    <input type="text" id="configEndpoint" value="/v1/chat/completions" readonly>
+                </div>
+                <div class="config-item">
+                    <label>当前 E 值 (前30字符)</label>
+                    <input type="text" id="configEValue" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedModel = 'anthropic/claude-4-sonnet';
+        let healthData = null;
+
+        async function checkHealth() {
+            try {
+                const res = await fetch('/health');
+                healthData = await res.json();
+                
+                document.getElementById('serviceStatus').textContent = '运行中';
+                document.getElementById('browserStatus').textContent = healthData.initialized ? '已初始化' : '未初始化';
+                document.getElementById('lastUpdate').textContent = new Date(healthData.timestamp).toLocaleString('zh-CN');
+                document.getElementById('eStatus').textContent = healthData.xIsHumanData.hasLatestE ? '已更新' : '使用默认';
+                document.getElementById('configEValue').value = healthData.xIsHumanData.currentE || '-';
+            } catch (error) {
+                document.getElementById('serviceStatus').textContent = '离线';
+                document.getElementById('serviceStatus').style.color = '#dc3545';
+            }
+        }
+
+        async function loadModels() {
+            try {
+                const res = await fetch('/v1/models');
+                const data = await res.json();
+                const container = document.getElementById('modelsList');
+                
+                container.innerHTML = data.data.map(model => `
+                    <div class="model-card ${model.id === selectedModel ? 'selected' : ''}" onclick="selectModel('${model.id}')">
+                        <h3>${model.id}</h3>
+                        <p>提供商: ${model.owned_by}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('加载模型失败:', error);
+            }
+        }
+
+        function selectModel(modelId) {
+            selectedModel = modelId;
+            loadModels();
+        }
+
+        async function testAPI(stream) {
+            const message = document.getElementById('testMessage').value;
+            const responseDiv = document.getElementById('response');
+            const button = event.target;
+            
+            if (!message.trim()) {
+                alert('请输入测试消息');
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span> 请求中...';
+            responseDiv.style.display = 'block';
+            responseDiv.textContent = stream ? '等待流式响应...\n\n' : '等待响应...';
+
+            try {
+                const res = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: [{ role: 'user', content: message }],
+                        stream: stream
+                    })
+                });
+
+                if (stream) {
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let content = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue;
+                                
+                                try {
+                                    const json = JSON.parse(data);
+                                    if (json.choices?.[0]?.delta?.content) {
+                                        content += json.choices[0].delta.content;
+                                        responseDiv.textContent = content;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    responseDiv.textContent = data.choices[0].message.content;
+                }
+            } catch (error) {
+                responseDiv.textContent = '错误: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = stream ? '流式请求' : '发送请求';
+            }
+        }
+
+        function clearResponse() {
+            document.getElementById('response').style.display = 'none';
+            document.getElementById('response').textContent = '';
+        }
+
+        // 初始化
+        checkHealth();
+        loadModels();
+        setInterval(checkHealth, 10000);
+    </script>
+</body>
+</html>
