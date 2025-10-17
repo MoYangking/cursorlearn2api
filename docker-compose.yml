@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  cursorlearn2api:
+    build: .
+    ports:
+      - "30011:30011"
+    environment:
+      - PORT=30011
+    restart: unless-stopped
