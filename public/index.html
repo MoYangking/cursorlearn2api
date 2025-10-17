@@ -70,6 +70,13 @@
         <div class="card">
             <h2>🤖 可用模型</h2>
             <div class="models" id="modelsList"></div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">添加自定义模型</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="customModelId" placeholder="模型ID (例如: anthropic/claude-3.5-sonnet)" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    <button onclick="addCustomModel()">添加</button>
+                </div>
+            </div>
         </div>
 
         <div class="card">
@@ -108,6 +115,7 @@
     <script>
         let selectedModel = 'anthropic/claude-4-sonnet';
         let healthData = null;
+        let customModels = JSON.parse(localStorage.getItem('customModels') || '[]');
 
         async function checkHealth() {
             try {
@@ -129,16 +137,54 @@
             try {
                 const res = await fetch('/v1/models');
                 const data = await res.json();
-                const container = document.getElementById('modelsList');
+                const allModels = [...data.data, ...customModels.map(id => ({
+                    id,
+                    object: 'model',
+                    created: Math.floor(Date.now() / 1000),
+                    owned_by: 'custom'
+                }))];
                 
-                container.innerHTML = data.data.map(model => `
+                const container = document.getElementById('modelsList');
+                container.innerHTML = allModels.map(model => `
                     <div class="model-card ${model.id === selectedModel ? 'selected' : ''}" onclick="selectModel('${model.id}')">
                         <h3>${model.id}</h3>
-                        <p>提供商: ${model.owned_by}</p>
+                        <p>提供商: ${model.owned_by}${model.owned_by === 'custom' ? ' <span onclick="removeCustomModel(event, \''+model.id+'\')">❌</span>' : ''}</p>
                     </div>
                 `).join('');
             } catch (error) {
                 console.error('加载模型失败:', error);
+            }
+        }
+
+        function addCustomModel() {
+            const input = document.getElementById('customModelId');
+            const modelId = input.value.trim();
+            
+            if (!modelId) {
+                alert('请输入模型ID');
+                return;
+            }
+            
+            if (customModels.includes(modelId)) {
+                alert('该模型已存在');
+                return;
+            }
+            
+            customModels.push(modelId);
+            localStorage.setItem('customModels', JSON.stringify(customModels));
+            input.value = '';
+            loadModels();
+        }
+
+        function removeCustomModel(event, modelId) {
+            event.stopPropagation();
+            if (confirm('确定删除该自定义模型?')) {
+                customModels = customModels.filter(id => id !== modelId);
+                localStorage.setItem('customModels', JSON.stringify(customModels));
+                if (selectedModel === modelId) {
+                    selectedModel = 'anthropic/claude-4-sonnet';
+                }
+                loadModels();
             }
         }
 
