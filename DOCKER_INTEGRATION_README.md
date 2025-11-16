@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-本项目将 **cursorlearn2api** 和 **Toolify** 两个项目整合到一个 Docker 容器中，为 Cursor AI 模型添加 OpenAI 兼容的函数调用（Function Calling）能力。
+本项目将 **cursorlearn2api** 和 **Toolify** 两个项目整合到一个 Docker 容器中，为 Cursor AI 模型添加 OpenAI 兼容的函数调用（Function Calling）能力，并提供了一个完整的 **Web 管理界面**。
 
 ### 架构说明
 
@@ -61,6 +61,85 @@ docker exec -it cursor-toolify tail -f /var/log/supervisor/toolify.log
 ```
 
 ### 4. 健康检查
+
+## 🎨 Web 管理界面
+
+本项目包含一个功能完整的 Web 管理面板，运行在 8000 端口。
+
+### 访问管理界面
+
+容器启动后，在浏览器中访问：
+
+```
+http://localhost:8000/admin
+```
+
+### 管理界面功能
+
+#### 1. 📊 服务状态监控
+- 实时显示 cursorlearn2api 和 Toolify 的运行状态
+- 自动定期刷新状态（30秒间隔）
+- 手动刷新按钮
+
+#### 2. ℹ️ 系统信息
+- 上游服务数量
+- 客户端密钥数量
+- 可用模型总数
+- 函数调用功能状态
+- 日志级别设置
+
+#### 3. 🤖 可用模型列表
+- 显示所有配置的 AI 模型
+- 包括 Claude、GPT、Gemini、Grok 等系列
+- 支持快速刷新
+
+#### 4. ⚙️ 配置编辑器
+- **在线编辑** config.yaml 配置文件
+- **语法验证**：保存前自动验证 YAML 格式
+- **一键保存**：直接保存到容器中
+- **恢复默认**：一键恢复到示例配置
+- **自动备份**：每次修改前自动备份
+
+#### 5. 💬 对话测试
+- **模型选择**：从下拉菜单选择任意可用模型
+- **实时对话**：直接测试模型响应
+- **对话历史**：保持上下文进行多轮对话
+- **清空对话**：一键清除历史记录
+- 支持测试函数调用功能
+
+### 管理界面截图说明
+
+界面分为以下几个模块：
+
+1. **左上角**：服务状态卡片（绿点=在线，红点=离线）
+2. **中上角**：系统信息概览
+3. **右上角**：可用模型列表
+4. **中间**：配置文件编辑器（支持实时编辑和保存）
+5. **底部**：对话测试工具（选择模型后即可测试）
+
+### API 端点
+
+管理界面提供以下 RESTful API：
+
+- `GET /admin` - 管理界面首页
+- `GET /admin/models` - 获取可用模型列表
+- `GET /admin/config` - 获取当前配置
+- `POST /admin/config` - 更新配置
+- `POST /admin/config/reset` - 恢复默认配置
+- `POST /admin/test-chat` - 测试对话功能
+- `GET /admin/status/cursor` - 检查 CursorLearn2API 状态
+- `GET /admin/status/toolify` - 检查 Toolify 状态
+
+### 注意事项
+
+⚠️ **配置修改**：通过管理界面修改配置后，需要重启容器才能生效：
+
+```bash
+docker restart cursor-toolify
+```
+
+💡 **备份提示**：每次修改配置前，系统会自动创建 `config.yaml.backup` 备份文件。
+
 
 ```bash
 # 检查 cursorlearn2api 服务

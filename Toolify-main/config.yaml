@@ -39,8 +39,7 @@ upstream_services:
 # 客户端认证配置
 client_authentication:
   allowed_keys:
-    - "sk-cursor-toolify-key-001"   # 客户端访问密钥1
-    - "sk-cursor-toolify-key-002"   # 客户端访问密钥2
+    - "123"   # 客户端访问密钥1
 
 # 功能配置
 features:

@@ -1642,10 +1642,21 @@ def safe_process_tool_choice(tool_choice) -> str:
         logger.error(f"❌ Error processing tool_choice: {e}")
         return ""
 
+# 集成管理面板
+try:
+    from admin_panel import setup_admin_panel
+    setup_admin_panel(app)
+    logger.info("✅ Admin panel integrated successfully")
+except ImportError as e:
+    logger.warning(f"⚠️  Admin panel not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to setup admin panel: {e}")
+
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"🚀 Starting server on {app_config.server.host}:{app_config.server.port}")
     logger.info(f"⏱️  Request timeout: {app_config.server.timeout} seconds")
+    logger.info(f"🌐 Admin panel: http://{app_config.server.host}:{app_config.server.port}/admin")
     
     uvicorn.run(
         app,

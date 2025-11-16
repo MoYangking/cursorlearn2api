@@ -48,7 +48,11 @@ RUN npm install && \
 COPY Toolify-main/requirements.txt ./toolify/requirements.txt
 COPY Toolify-main/main.py ./toolify/main.py
 COPY Toolify-main/config_loader.py ./toolify/config_loader.py
+COPY Toolify-main/admin_panel.py ./toolify/admin_panel.py
 COPY Toolify-main/config.example.yaml ./toolify/config.yaml
+
+# 复制Web管理界面
+COPY web_admin/ ./web_admin/
 
 # 安装Python依赖
 RUN pip install --no-cache-dir -r ./toolify/requirements.txt

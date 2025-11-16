@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor + Toolify 管理面板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-dot.online {
+            background: #28a745;
+            box-shadow: 0 0 10px #28a745;
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .config-editor {
+            grid-column: 1 / -1;
+        }
+
+        .config-editor textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .chat-tester {
+            grid-column: 1 / -1;
+        }
+
+        .chat-messages {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: white;
+            border: 1px solid #ddd;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .info-item strong {
+            color: #667eea;
+        }
+
+        .model-selector {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Cursor + Toolify 管理面板</h1>
+            <p>统一管理您的 AI 模型服务</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- 服务状态 -->
+            <div class="card">
+                <h2>📊 服务状态</h2>
+                <div class="status">
+                    <div class="status-dot" id="cursorStatus"></div>
+                    <span>CursorLearn2API</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot" id="toolifyStatus"></div>
+                    <span>Toolify</span>
+                </div>
+                <button class="btn" onclick="checkStatus()">刷新状态</button>
+            </div>
+
+            <!-- 系统信息 -->
+            <div class="card">
+                <h2>ℹ️ 系统信息</h2>
+                <div class="info-grid" id="systemInfo">
+                    <div class="info-item">
+                        <span>加载中...</span>
+                    </div>
+                </div>
+                <button class="btn" onclick="loadSystemInfo()">刷新信息</button>
+            </div>
+
+            <!-- 可用模型 -->
+            <div class="card">
+                <h2>🤖 可用模型</h2>
+                <div id="modelsList" style="max-height: 300px; overflow-y: auto;">
+                    <p>加载中...</p>
+                </div>
+                <button class="btn" onclick="loadModels()">刷新模型列表</button>
+            </div>
+
+            <!-- 配置编辑器 -->
+            <div class="card config-editor">
+                <h2>⚙️ 配置编辑器</h2>
+                <div id="configAlert" class="alert"></div>
+                <textarea id="configEditor" placeholder="加载配置中..."></textarea>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn" onclick="loadConfig()">重新加载</button>
+                    <button class="btn" onclick="saveConfig()">保存配置</button>
+                    <button class="btn btn-danger" onclick="resetConfig()">恢复默认</button>
+                </div>
+            </div>
+
+            <!-- 对话测试 -->
+            <div class="card chat-tester">
+                <h2>💬 对话测试</h2>
+                <select class="model-selector" id="chatModel">
+                    <option value="">选择模型...</option>
+                </select>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="loading" id="chatLoading">正在发送...</div>
+                <div class="chat-input">
+                    <input type="text" id="chatInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="btn" onclick="sendMessage()">发送</button>
+                    <button class="btn btn-danger" onclick="clearChat()">清空</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let chatHistory = [];
+
+        // 检查服务状态
+        async function checkStatus() {
+            try {
+                // 检查 CursorLearn2API
+                const cursorRes = await fetch('http://localhost:30011/health').catch(() => ({ ok: false }));
+                document.getElementById('cursorStatus').className = cursorRes.ok ? 'status-dot online' : 'status-dot offline';
+
+                // 检查 Toolify
+                const toolifyRes = await fetch(API_BASE + '/').catch(() => ({ ok: false }));
+                document.getElementById('toolifyStatus').className = toolifyRes.ok ? 'status-dot online' : 'status-dot offline';
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+
+        // 加载系统信息
+        async function loadSystemInfo() {
+            try {
+                const res = await fetch(API_BASE + '/');
+                const data = await res.json();
+                
+                const infoHTML = `
+                    <div class="info-item">
+                        <strong>状态</strong>
+                        <span>${data.status}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>上游服务数</strong>
+                        <span>${data.config.upstream_services_count}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>客户端密钥数</strong>
+                        <span>${data.config.client_keys_count}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>模型数量</strong>
+                        <span>${data.config.models_count}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>函数调用</strong>
+                        <span>${data.config.features.function_calling ? '✅ 启用' : '❌ 禁用'}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>日志级别</strong>
+                        <span>${data.config.features.log_level}</span>
+                    </div>
+                `;
+                document.getElementById('systemInfo').innerHTML = infoHTML;
+            } catch (error) {
+                document.getElementById('systemInfo').innerHTML = '<div class="info-item"><span>加载失败</span></div>';
+                console.error('Failed to load system info:', error);
+            }
+        }
+
+        // 加载模型列表
+        async function loadModels() {
+            try {
+                const res = await fetch(API_BASE + '/admin/models');
+                const data = await res.json();
+                
+                let modelsHTML = '';
+                data.models.forEach(model => {
+                    modelsHTML += `
+                        <div class="info-item">
+                            <span>${model}</span>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('modelsList').innerHTML = modelsHTML;
+                
+                // 更新对话测试的模型选择器
+                const selector = document.getElementById('chatModel');
+                selector.innerHTML = '<option value="">选择模型...</option>';
+                data.models.forEach(model => {
+                    selector.innerHTML += `<option value="${model}">${model}</option>`;
+                });
+            } catch (error) {
+                document.getElementById('modelsList').innerHTML = '<p>加载失败</p>';
+                console.error('Failed to load models:', error);
+            }
+        }
+
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const res = await fetch(API_BASE + '/admin/config');
+                const data = await res.json();
+                document.getElementById('configEditor').value = data.config;
+                showAlert('configAlert', '配置已加载', 'success');
+            } catch (error) {
+                showAlert('configAlert', '配置加载失败', 'error');
+                console.error('Failed to load config:', error);
+            }
+        }
+
+        // 保存配置
+        async function saveConfig() {
+            try {
+                const config = document.getElementById('configEditor').value;
+                const res = await fetch(API_BASE + '/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config })
+                });
+                
+                if (res.ok) {
+                    showAlert('configAlert', '配置已保存！需要重启服务生效。', 'success');
+                } else {
+                    showAlert('configAlert', '配置保存失败', 'error');
+                }
+            } catch (error) {
+                showAlert('configAlert', '配置保存失败: ' + error.message, 'error');
+                console.error('Failed to save config:', error);
+            }
+        }
+
+        // 恢复默认配置
+        async function resetConfig() {
+            if (confirm('确定要恢复默认配置吗？')) {
+                try {
+                    const res = await fetch(API_BASE + '/admin/config/reset', {
+                        method: 'POST'
+                    });
+                    
+                    if (res.ok) {
+                        await loadConfig();
+                        showAlert('configAlert', '配置已恢复为默认值', 'success');
+                    } else {
+                        showAlert('configAlert', '恢复默认配置失败', 'error');
+                    }
+                } catch (error) {
+                    showAlert('configAlert', '操作失败: ' + error.message, 'error');
+                    console.error('Failed to reset config:', error);
+                }
+            }
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const model = document.getElementById('chatModel').value;
+            const message = input.value.trim();
+            
+            if (!message || !model) {
+                alert('请选择模型并输入消息');
+                return;
+            }
+            
+            input.value = '';
+            chatHistory.push({ role: 'user', content: message });
+            displayMessage('user', message);
+            
+            document.getElementById('chatLoading').classList.add('active');
+            
+            try {
+                const res = await fetch(API_BASE + '/admin/test-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, messages: chatHistory })
+                });
+                
+                const data = await res.json();
+                const assistantMessage = data.response;
+                
+                chatHistory.push({ role: 'assistant', content: assistantMessage });
+                displayMessage('assistant', assistantMessage);
+            } catch (error) {
+                displayMessage('assistant', '错误: ' + error.message);
+                console.error('Failed to send message:', error);
+            } finally {
+                document.getElementById('chatLoading').classList.remove('active');
+            }
+        }
+
+        // 显示消息
+        function displayMessage(role, content) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // 清空对话
+        function clearChat() {
+            chatHistory = [];
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+
+        // 显示提示
+        function showAlert(elementId, message, type) {
+            const alert = document.getElementById(elementId);
+            alert.textContent = message;
+            alert.className = `alert ${type} show`;
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+
+        // 初始化
+        window.onload = function() {
+            checkStatus();
+            loadSystemInfo();
+            loadModels();
+            loadConfig();
+            
+            // 定期刷新状态
+            setInterval(checkStatus, 30000);
+        };
+    </script>
+</body>
+</html>
