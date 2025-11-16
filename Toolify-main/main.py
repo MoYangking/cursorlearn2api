@@ -1642,15 +1642,104 @@ def safe_process_tool_choice(tool_choice) -> str:
         logger.error(f"❌ Error processing tool_choice: {e}")
         return ""
 
-# 集成管理面板
-try:
-    from admin_panel import setup_admin_panel
-    setup_admin_panel(app)
-    logger.info("✅ Admin panel integrated successfully")
-except ImportError as e:
-    logger.warning(f"⚠️  Admin panel not available: {e}")
-except Exception as e:
-    logger.error(f"❌ Failed to setup admin panel: {e}")
+# ============= 管理面板路由 =============
+import yaml
+from fastapi.responses import HTMLResponse
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel():
+    """管理面板首页"""
+    html_path = os.path.join(os.path.dirname(__file__), "..", "web_admin", "static", "index.html")
+    if os.path.exists(html_path):
+        with open(html_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return "<h1>管理面板</h1><p>静态文件未找到</p><p><a href='/docs'>查看API文档</a></p>"
+
+@app.get("/admin/models")
+async def get_admin_models():
+    """获取可用模型列表"""
+    models = set()
+    for model_name in MODEL_TO_SERVICE_MAPPING.keys():
+        if ':' in model_name:
+            models.add(model_name.split(':')[0])
+        models.add(model_name)
+    return {"models": sorted(list(models))}
+
+@app.get("/admin/config")
+async def get_admin_config():
+    """获取配置文件内容"""
+    config_path = config_loader.config_path
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return {"config": f.read()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ConfigUpdate(BaseModel):
+    config: str
+
+@app.post("/admin/config")
+async def update_admin_config(update: ConfigUpdate):
+    """更新配置文件"""
+    config_path = config_loader.config_path
+    try:
+        # 验证 YAML
+        yaml.safe_load(update.config)
+        # 备份
+        if os.path.exists(config_path):
+            with open(config_path + ".backup", 'w', encoding='utf-8') as f:
+                with open(config_path, 'r', encoding='utf-8') as r:
+                    f.write(r.read())
+        # 写入
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write(update.config)
+        return {"message": "配置已更新，需要重启服务"}
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"YAML 格式错误: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/config/reset")
+async def reset_admin_config():
+    """恢复默认配置"""
+    config_path = config_loader.config_path
+    example_path = os.path.join(os.path.dirname(config_path), "config.example.yaml")
+    try:
+        if not os.path.exists(example_path):
+            raise HTTPException(status_code=404, detail="示例配置文件不存在")
+        with open(example_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return {"message": "配置已恢复为默认值"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatTest(BaseModel):
+    model: str
+    messages: List[Dict[str, Any]]
+
+@app.post("/admin/test-chat")
+async def test_admin_chat(test: ChatTest):
+    """测试对话"""
+    try:
+        api_key = ALLOWED_CLIENT_KEYS[0] if ALLOWED_CLIENT_KEYS else "dummy"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:8000/v1/chat/completions",
+                json={"model": test.model, "messages": test.messages, "stream": False},
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=60.0
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return {"response": result["choices"][0]["message"]["content"]}
+            else:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+logger.info("✅ Admin panel routes registered")
 
 if __name__ == "__main__":
     import uvicorn
