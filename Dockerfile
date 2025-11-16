@@ -1,8 +1,13 @@
-FROM node:18-slim
+# 使用包含Node.js和Python的基础镜像
+FROM nikolaik/python-nodejs:python3.11-nodejs20
 
-# 安装 Playwright 依赖
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
 RUN apt-get update && apt-get install -y \
     wget \
+    gnupg \
     ca-certificates \
     fonts-liberation \
     libasound2 \
@@ -23,24 +28,60 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
+    libu2f-udev \
+    libvulkan1 \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
-# 复制依赖文件
+# 复制cursorlearn2api项目文件
 COPY package*.json ./
+COPY server.js ./
+COPY src/ ./src/
+COPY .env.example ./.env.example
 
-# 安装依赖
-RUN npm install
+# 安装Node.js依赖
+RUN npm install && \
+    npx playwright install chromium && \
+    npx playwright install-deps chromium
 
-# 安装 Playwright 浏览器及其依赖
-RUN npx playwright install --with-deps chromium
+# 复制Toolify项目文件
+COPY Toolify-main/requirements.txt ./toolify/requirements.txt
+COPY Toolify-main/main.py ./toolify/main.py
+COPY Toolify-main/config_loader.py ./toolify/config_loader.py
+COPY Toolify-main/config.example.yaml ./toolify/config.yaml
 
-# 复制应用代码
-COPY . .
+# 安装Python依赖
+RUN pip install --no-cache-dir -r ./toolify/requirements.txt
+
+# 创建supervisord配置文件
+RUN mkdir -p /var/log/supervisor
+
+# 创建启动脚本
+RUN echo '#!/bin/bash\n\
+# 启动cursorlearn2api (Node.js服务)\n\
+cd /app\n\
+export PORT=30011\n\
+node server.js > /var/log/supervisor/cursorlearn2api.log 2>&1 &\n\
+\n\
+# 等待cursorlearn2api启动\n\
+sleep 5\n\
+\n\
+# 启动Toolify (Python服务)\n\
+cd /app/toolify\n\
+python main.py > /var/log/supervisor/toolify.log 2>&1 &\n\
+\n\
+# 保持容器运行\n\
+tail -f /var/log/supervisor/*.log\n\
+' > /app/start.sh && chmod +x /app/start.sh
 
 # 暴露端口
-EXPOSE 30011
+# 30011: cursorlearn2api服务端口
+# 8000: Toolify服务端口
+EXPOSE 30011 8000
 
-# 启动应用
-CMD ["npm", "start"]
+# 设置环境变量
+ENV PORT=30011
+ENV NODE_ENV=production
+
+# 启动服务
+CMD ["/app/start.sh"]

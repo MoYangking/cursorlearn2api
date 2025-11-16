@@ -1,0 +1,96 @@
+# Toolify Configuration File
+# 整合cursorlearn2api项目，为Cursor AI模型添加函数调用能力
+
+# 服务器配置
+server:
+  port: 8000                    # Toolify服务监听端口
+  host: "0.0.0.0"              # 监听地址
+  timeout: 180                  # 请求超时时间（秒）
+
+# 上游服务配置 - cursorlearn2api
+upstream_services:
+  - name: "cursor"
+    base_url: "http://localhost:30011/v1"  # cursorlearn2api的API地址
+    api_key: "dummy-key"         # cursorlearn2api不需要认证，使用占位符
+    description: "Cursor AI Models via cursorlearn2api"
+    is_default: true             # 设置为默认服务
+    models:
+      # Anthropic Claude系列
+      - "anthropic/claude-4-sonnet"
+      - "anthropic/claude-4.1-opus"
+      - "anthropic/claude-4.5-sonnet"
+      # OpenAI GPT系列
+      - "openai/gpt-5"
+      # Google Gemini系列
+      - "google/gemini-2.5-pro"
+      - "google/gemini-2.5-flash"
+      # XAI Grok系列
+      - "xai/grok-4"
+      - "xai/grok-code-fast-1"
+      # Moonshot Kimi系列
+      - "moonshotai/kimi-k2-0905"
+      # Alibaba Qwen系列
+      - "alibaba/qwen3-coder"
+      - "alibaba/qwen3-coder-plus"
+      - "alibaba/qwen3-max"
+      # GLM系列
+      - "zai/glm-4.6"
+
+# 客户端认证配置
+client_authentication:
+  allowed_keys:
+    - "sk-cursor-toolify-key-001"   # 客户端访问密钥1
+    - "sk-cursor-toolify-key-002"   # 客户端访问密钥2
+
+# 功能配置
+features:
+  enable_function_calling: true      # 启用函数调用功能（核心功能）
+  log_level: "INFO"                  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL, DISABLED
+  convert_developer_to_system: true  # 将developer角色转换为system角色
+  key_passthrough: false             # 不直接传递客户端API密钥
+  model_passthrough: false           # 不启用模型透传模式
+  
+  # 自定义提示模板（可选）
+  # 使用默认模板，包含以下特性：
+  # - 支持单次响应中调用多个工具
+  # - 上下文感知，避免重复调用工具
+  # - 严格的参数匹配规则（保留连字符等特殊字符）
+  # - 清晰的格式要求和正确/错误示例
+  # - 通过XML标签跟踪工具结果
+  # prompt_template: |
+  #   自定义提示模板...
+  #   必须包含 {tools_list} 和 {trigger_signal} 占位符
+
+# 配置说明：
+# 
+# 1. 整合架构：
+#    - cursorlearn2api运行在端口30011，提供Cursor AI模型的OpenAI兼容API
+#    - Toolify运行在端口8000，作为中间件代理，注入函数调用能力
+#    - 客户端 -> Toolify (8000) -> cursorlearn2api (30011) -> Cursor AI
+#
+# 2. 使用方法：
+#    客户端应用配置：
+#    - base_url: "http://localhost:8000/v1"
+#    - api_key: "sk-cursor-toolify-key-001" (或其他配置的密钥)
+#    - 使用标准OpenAI SDK，包括tools定义
+#
+# 3. 支持的模型：
+#    所有cursorlearn2api支持的模型都已配置，包括：
+#    - Claude 4系列
+#    - GPT-5
+#    - Gemini 2.5系列
+#    - Grok系列
+#    - Kimi系列
+#    - Qwen3系列
+#    - GLM系列
+#
+# 4. 函数调用功能：
+#    - Toolify会自动将工具定义转换为提示词注入到请求中
+#    - 解析模型响应中的函数调用，转换为标准OpenAI格式
+#    - 支持流式和非流式响应
+#    - 支持同时调用多个工具
+#
+# 5. 安全提醒：
+#    - 请妥善保管API密钥，不要将包含真实密钥的配置文件提交到版本控制系统
+#    - 建议为不同环境使用不同的配置文件
+#    - 可以使用环境变量管理敏感信息

@@ -1,10 +1,113 @@
 version: '3.8'
 
 services:
+  # cursorlearn2api 服务 - 提供 Cursor AI 的 OpenAI 兼容接口
   cursorlearn2api:
-    build: .
-    ports:
-      - "30011:30011"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cursorlearn2api
+    restart: unless-stopped
     environment:
       - PORT=30011
+      # 可选：如果需要 API 认证，取消下面的注释并设置密钥
+      # - API_KEY=your-secret-key-here
+    ports:
+      # 内部端口，不对外暴露（仅供 Toolify 访问）
+      - "30011:30011"
+    networks:
+      - cursor-toolify-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:30011/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Toolify 服务 - 为 LLM 添加 function calling 能力的中间件
+  toolify:
+    build:
+      context: ./Toolify-main
+      dockerfile: ../Dockerfile.toolify
+    container_name: toolify
     restart: unless-stopped
+    ports:
+      # 对外暴露的主要端口
+      - "8000:8000"
+    volumes:
+      # 挂载配置文件
+      - ./Toolify-main/config.yaml:/app/config.yaml:ro
+    networks:
+      - cursor-toolify-network
+    depends_on:
+      cursorlearn2api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  cursor-toolify-network:
+    driver: bridge
+    name: cursor-toolify-network
+
+# 使用说明：
+# 
+# 1. 启动服务：
+#    docker-compose up -d
+#
+# 2. 查看日志：
+#    docker-compose logs -f
+#    docker-compose logs -f cursorlearn2api  # 仅查看 cursorlearn2api 日志
+#    docker-compose logs -f toolify          # 仅查看 Toolify 日志
+#
+# 3. 停止服务：
+#    docker-compose down
+#
+# 4. 重启服务：
+#    docker-compose restart
+#
+# 5. 查看服务状态：
+#    docker-compose ps
+#
+# 6. 重新构建并启动：
+#    docker-compose up -d --build
+#
+# API 访问：
+# - Toolify 入口（对外）: http://localhost:8000
+# - cursorlearn2api（内部）: http://cursorlearn2api:30011
+#
+# 客户端配置示例（Python）:
+# from openai import OpenAI
+# client = OpenAI(
+#     base_url="http://localhost:8000/v1",
+#     api_key="sk-toolify-cursor-integration-2024"
+# )
+#
+# 客户端配置示例（JavaScript）:
+# import OpenAI from 'openai';
+# const client = new OpenAI({
+#   baseURL: 'http://localhost:8000/v1',
+#   apiKey: 'sk-toolify-cursor-integration-2024'
+# });

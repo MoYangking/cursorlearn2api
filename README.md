@@ -13,7 +13,7 @@ OpenAI-compatible API service for Cursor AI models using Playwright automation. 
 
 ## Limitations
 
-- File and image uploads not supported
+- Image recognition not supported
 - Tool calling (function calling) not supported (TODO)
 
 ## Requirements
@@ -22,7 +22,25 @@ OpenAI-compatible API service for Cursor AI models using Playwright automation. 
 - npm or yarn
 - Chrome/Chromium browser
 
-## Installation
+## Quick Start
+
+### Option 1: Run with npx (Recommended)
+
+No installation needed! Just run:
+```bash
+npx cursorlearn2api
+```
+
+First run will automatically install dependencies and Playwright browser.
+
+### Option 2: Global Installation
+
+```bash
+npm install -g cursorlearn2api
+cursorlearn2api
+```
+
+### Option 3: Manual Installation
 
 Clone and install:
 ```bash
@@ -30,16 +48,17 @@ git clone https://github.com/gmh5225/cursorlearn2api.git
 cd cursorlearn2api
 npm install
 npx playwright install chromium
-```
-
-## Usage
-
-Start the server:
-```bash
 npm start
 ```
 
-Server runs on port 30011 by default. Set `PORT` environment variable to change.
+Server runs on port `30011` by default. Set `PORT` environment variable to change.
+
+**Optional: Enable API Key Authentication**
+```bash
+export API_KEY="your-secret-key"
+npm start
+```
+Then add header: `Authorization: Bearer your-secret-key`
 
 ## API Endpoints
 
@@ -52,12 +71,29 @@ Example:
 ```bash
 curl -X POST http://localhost:30011/v1/chat/completions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY"\
   -d '{
-    "model": "anthropic/claude-4-sonnet",
-    "messages": [{"role": "user", "content": "Hello"}],
+    "model": "anthropic/claude-4.5-sonnet",
+    "messages": [{"role": "user", "content": "Who are you"}],
     "stream": false
   }'
 ```
+
+## Available Models
+
+- `anthropic/claude-4-sonnet`
+- `anthropic/claude-4.1-opus`
+- `anthropic/claude-4.5-sonnet`
+- `openai/gpt-5`
+- `google/gemini-2.5-pro`
+- `google/gemini-2.5-flash`
+- `xai/grok-4`
+- `xai/grok-code-fast-1`
+- `moonshotai/kimi-k2-0905`
+- `alibaba/qwen3-coder`
+- `alibaba/qwen3-coder-plus`
+- `alibaba/qwen3-max`
+- `zai/glm-4.6`
 
 ## Development
 

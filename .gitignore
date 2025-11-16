@@ -169,6 +169,11 @@ dist/
 # PM2 ecosystem file
 ecosystem.config.js
 
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
 # Backup files
 *.bak
 *.backup
