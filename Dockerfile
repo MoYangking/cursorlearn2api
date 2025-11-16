@@ -56,23 +56,27 @@ RUN pip install --no-cache-dir -r ./toolify/requirements.txt
 # 创建supervisord配置文件
 RUN mkdir -p /var/log/supervisor
 
-# 创建启动脚本
-RUN echo '#!/bin/bash\n\
-# 启动cursorlearn2api (Node.js服务)\n\
-cd /app\n\
-export PORT=30011\n\
-node server.js > /var/log/supervisor/cursorlearn2api.log 2>&1 &\n\
-\n\
-# 等待cursorlearn2api启动\n\
-sleep 5\n\
-\n\
-# 启动Toolify (Python服务)\n\
-cd /app/toolify\n\
-python main.py > /var/log/supervisor/toolify.log 2>&1 &\n\
-\n\
-# 保持容器运行\n\
-tail -f /var/log/supervisor/*.log\n\
-' > /app/start.sh && chmod +x /app/start.sh
+# 创建启动脚本（使用简单 printf，兼容性更好）
+RUN printf '%s\n' \
+  '#!/bin/bash' \
+  'set -e' \
+  '' \
+  '# 启动cursorlearn2api (Node.js服务)' \
+  'cd /app' \
+  'export PORT=30011' \
+  'node server.js > /var/log/supervisor/cursorlearn2api.log 2>&1 &' \
+  '' \
+  '# 等待cursorlearn2api启动' \
+  'sleep 5' \
+  '' \
+  '# 启动Toolify (Python服务)' \
+  'cd /app/toolify' \
+  'python main.py > /var/log/supervisor/toolify.log 2>&1 &' \
+  '' \
+  '# 保持容器运行' \
+  'tail -f /var/log/supervisor/*.log' \
+  > /app/start.sh \
+  && chmod +x /app/start.sh
 
 # 暴露端口
 # 30011: cursorlearn2api服务端口
@@ -84,4 +88,5 @@ ENV PORT=30011
 ENV NODE_ENV=production
 
 # 启动服务
-CMD ["/app/start.sh"]
+# 通过 bash 显式执行脚本，可以规避 Windows CRLF 行尾导致的 shebang 解析问题
+CMD ["bash", "/app/start.sh"]
